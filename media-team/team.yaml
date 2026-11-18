@@ -1,0 +1,176 @@
+# media-team: Agentic Team Protocol (ATP) package
+name: rollacode/media-team
+version: 0.2.0
+title: Media team
+description: "Runs a product's content end to end, for any product: a weekly per-channel plan, posts grounded in real events and numbers, design and video assets, short tracked links, scheduled read-only metrics collection from every channel and the site, and an honest dashboard that compares each number with a baseline. A producer leads with a design lead and an engineering lead. The owner publishes and approves anything public, and every number is reconciled against raw data before anyone sees it."
+icon: icon.svg
+authors:
+  - name: Andrey Kovalev
+    url: https://domios.dev
+    role: author
+license: Apache-2.0
+when:
+  - run a product's social content and media week by week
+  - plan, write and schedule posts for LinkedIn, X, Threads and other channels
+  - track post views, followers, link clicks, site visits and downloads per post
+  - build or fix a content analytics dashboard with honest comparisons
+  - collect social metrics on a schedule with scripts and agent fallback
+  - make covers, feed clips and voiceovers for posts from the real product UI
+  - learn which posts work and rewrite the plan from the data
+
+project: required
+
+inputs:
+  product:
+    description: The product the content is about, with its site URL. Leave empty and the Producer discovers it from the project
+    default: discover from the project
+  owner_language:
+    description: The language to speak to the owner in. Leave empty and the Producer replies in the language of the owner's first message
+    default: the language of the owner's first message
+  timezone:
+    description: The owner's IANA timezone. Leave empty and the Producer uses this machine's timezone
+    default: this machine's timezone
+  channels:
+    description: The channels in scope. Leave empty and the Producer starts with whatever accounts the owner already has, even just one
+    default: whatever the owner already has
+
+permissions:
+  network: true
+  repo_write: true
+  shell: true
+  browser: true
+
+files:
+  - path: docs/content-playbook.md
+    description: The weekly loop, the content rules, cadence, links, owner gates and how corrections become rules
+  - path: docs/metrics-pipeline.md
+    description: The channel registry, catalog with permanent codes, append-only snapshots, scripted-first collection with agent fallback, metric definitions and baselines
+  - path: docs/design-review.md
+    description: How the design lead specifies and reviews a surface live, and the dashboard and UI rules
+  - path: docs/video-pipeline.md
+    description: Clips from the real product UI, captions, voice and the deterministic capture-and-finish pipeline
+  - path: docs/engineering-contracts.md
+    description: One writer per surface, evidence and receipts, data integrity rules, schedules and cleanup
+  - path: docs/catalog-app.md
+    description: Blueprint for building the local catalog and dashboard from an empty folder, with the first-day slice, the data files, collection, the append protocol and the variants contract
+  - path: docs/catalog-ui.md
+    description: How the catalog looks and behaves, with the three views, the number rules, the variant board, phone rules and accessibility
+
+memory:
+  - title: Posts rest on something real
+    kind: rule
+    body: Every post rests on a concrete event, a hard number or a practical step-by-step fix. Generic thought-leadership theses underperform and are rejected.
+    tags: [content]
+  - title: Unknown is not zero
+    kind: rule
+    body: A number that was not read stays absent. Never write or show 0 for a missing reading, never sum unique visitors, and never treat a post missing from a snapshot as a drop.
+    tags: [metrics]
+  - title: Verify against raw data before reporting
+    kind: rule
+    body: Before telling the owner any number or saying a dashboard is fixed, recompute it from the raw store with an independent script. Agent summaries, especially cheap-model sums, are often wrong.
+    tags: [metrics, process]
+  - title: Copy deliverables out of pads before closing tabs
+    kind: learning
+    body: Closing an agent tab deletes its pad. Copy every spec, report and piece of evidence that is still needed into the project before closing.
+    tags: [process]
+
+skills:
+  - path: skills/humanizer
+  - path: skills/writing-posts
+
+roles:
+  orchestrator:
+    kind: manager
+    name: Producer
+    description: Leads the media team, owns the plan, the posts and the owner relationship, and judges every number.
+    model: [claude:opus]
+    skills: [writing-posts, humanizer]
+    files:
+      - docs/content-playbook.md
+      - docs/metrics-pipeline.md
+      - docs/design-review.md
+      - docs/video-pipeline.md
+      - docs/engineering-contracts.md
+      - docs/catalog-app.md
+      - docs/catalog-ui.md
+    instructions_file: managers/orchestrator.md
+
+  planner:
+    kind: manager
+    start: on_demand
+    model:
+      same_as: engineering_lead
+    files: [docs/content-playbook.md, docs/engineering-contracts.md]
+    instructions_file: managers/planner.md
+
+  design_lead:
+    kind: manager
+    name: Design lead
+    description: Owns the visual direction, the numbered specs and the final look verdict on every surface and asset.
+    start: with_team
+    model: [claude:opus]
+    files: [docs/design-review.md, docs/video-pipeline.md, docs/catalog-ui.md]
+    instructions_file: managers/design_lead.md
+
+  engineering_lead:
+    kind: manager
+    name: Engineering lead
+    description: Owns the data contracts, collectors, storage integrity and the app's backend, with evidence-based acceptance.
+    start: with_team
+    model: [codex:gpt-6.1-sol]
+    files: [docs/metrics-pipeline.md, docs/engineering-contracts.md, docs/catalog-app.md]
+    instructions_file: managers/engineering_lead.md
+
+  writer:
+    kind: worker
+    description: Drafts per-channel posts from real material and runs the humanizer pass.
+    model:
+      same_as: orchestrator
+    skills: [writing-posts, humanizer]
+    files: [docs/content-playbook.md]
+    instructions_file: workers/writer.md
+
+  analyst:
+    kind: worker
+    description: Defines metrics and baselines, reconciles numbers against raw data and writes short analyses.
+    model: [codex:gpt-6.1-sol]
+    files: [docs/metrics-pipeline.md, docs/content-playbook.md]
+    instructions_file: workers/analyst.md
+
+  collector:
+    kind: worker
+    description: Reads one channel's numbers read-only, by script or by browser as the fallback, and appends one validated snapshot.
+    model: [claude:haiku]
+    files: [docs/metrics-pipeline.md]
+    instructions_file: workers/collector.md
+
+  data_engineer:
+    kind: worker
+    description: Builds collectors, validators, storage and schedules as bounded slices with receipts.
+    model:
+      same_as: engineering_lead
+    files: [docs/metrics-pipeline.md, docs/engineering-contracts.md, docs/catalog-app.md]
+    instructions_file: workers/data_engineer.md
+
+  implementer:
+    kind: worker
+    description: The single writer for the app's UI; builds the approved spec and review fixes.
+    model:
+      same_as: engineering_lead
+    files: [docs/design-review.md, docs/engineering-contracts.md, docs/catalog-app.md, docs/catalog-ui.md]
+    instructions_file: workers/implementer.md
+
+  reviewer:
+    kind: worker
+    description: Independently reviews the real running app or asset on desktop and phone, with real data.
+    model:
+      same_as: engineering_lead
+    files: [docs/design-review.md, docs/metrics-pipeline.md]
+    instructions_file: workers/reviewer.md
+
+  video_editor:
+    kind: worker
+    description: Makes clips, covers and voiceovers from the real product UI and registers them as assets.
+    model: [claude:opus]
+    files: [docs/video-pipeline.md, docs/design-review.md]
+    instructions_file: workers/video_editor.md

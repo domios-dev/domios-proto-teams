@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "domios-proto-teams",
+  "displayName": "Domios prototype teams",
+  "description": "Experimental ATP teams from real day-to-day work. Useful, not yet hardened.",
+  "teams": [
+    {
+      "name": "rollacode/media-team",
+      "path": "media-team",
+      "version": "0.2.0",
+      "minDomios": "1.20.0"
+    }
+  ]
+}
