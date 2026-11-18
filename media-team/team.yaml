@@ -1,6 +1,6 @@
 # media-team: Agentic Team Protocol (ATP) package
 name: rollacode/media-team
-version: 0.2.0
+version: 0.2.1
 title: Media team
 description: "Runs a product's content end to end, for any product: a weekly per-channel plan, posts grounded in real events and numbers, design and video assets, short tracked links, scheduled read-only metrics collection from every channel and the site, and an honest dashboard that compares each number with a baseline. A producer leads with a design lead and an engineering lead. The owner publishes and approves anything public, and every number is reconciled against raw data before anyone sees it."
 icon: icon.svg
