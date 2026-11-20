@@ -1,6 +1,6 @@
 # media-team: Agentic Team Protocol (ATP) package
 name: rollacode/media-team
-version: 0.2.1
+version: 0.3.0
 title: Media team
 description: "Runs a product's content end to end, for any product: a weekly per-channel plan, posts grounded in real events and numbers, design and video assets, short tracked links, scheduled read-only metrics collection from every channel and the site, and an honest dashboard that compares each number with a baseline. A producer leads with a design lead and an engineering lead. The owner publishes and approves anything public, and every number is reconciled against raw data before anyone sees it."
 icon: icon.svg
@@ -14,7 +14,8 @@ when:
   - plan, write and schedule posts for LinkedIn, X, Threads and other channels
   - track post views, followers, link clicks, site visits and downloads per post
   - build or fix a content analytics dashboard with honest comparisons
-  - collect social metrics on a schedule with scripts and agent fallback
+  - collect social metrics hourly through official APIs, scripts and an agent fallback
+  - check which channels stopped saving data and fix the collector
   - make covers, feed clips and voiceovers for posts from the real product UI
   - learn which posts work and rewrite the plan from the data
 
@@ -69,6 +70,18 @@ memory:
     kind: rule
     body: Before telling the owner any number or saying a dashboard is fixed, recompute it from the raw store with an independent script. Agent summaries, especially cheap-model sums, are often wrong.
     tags: [metrics, process]
+  - title: Omit, never wrong
+    kind: rule
+    body: When a collector cannot tie a number to its own post and control (an abbreviated count, an icon-only button, a value that could belong to another post), it leaves the number out. A missing reading is honest; a reading from the wrong post corrupts every chart and baseline.
+    tags: [metrics]
+  - title: Save the reservation once, never retype ids
+    kind: rule
+    body: A collector saves the begin response to a file the moment it returns and commits from that file. Models mistype long ids; one swapped character lost a slot. A help call is not a reservation.
+    tags: [metrics, process]
+  - title: Prove a scraper on the live page before review
+    kind: learning
+    body: Fixture tests passed for many rounds while the real page had no links, other labels and icon-only buttons. A read-only dry-run on the real signed-in page, run by the builder before reporting, ends those loops.
+    tags: [process, engineering]
   - title: Copy deliverables out of pads before closing tabs
     kind: learning
     body: Closing an agent tab deletes its pad. Copy every spec, report and piece of evidence that is still needed into the project before closing.

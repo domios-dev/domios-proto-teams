@@ -17,23 +17,37 @@ How the team knows what each post did, honestly.
   - History is never rewritten. A misread is flagged, not deleted.
 - **Site analytics:** aggregates only (daily series, true unique visitors per range, events) plus a per-code breakdown by `utm_content`, within a fixed call budget per refresh.
 
-## Collection: scripted first, agent fallback
+## Collection: official API first, then a script, then an agent
 
-1. **Record routes.** For each channel, an agent does one normal collection while writing down every URL, locator, label and gotcha (`routes/<channel>.md` and `.json`).
-2. **Script it.** Engineering turns the route into a deterministic script on a dedicated browser profile, with no LLM.
-3. **Schedule.** Run one scheduler or graph that fans out per channel in parallel. If a script fails, returns incomplete data or hits a login wall, start **one cheap-model agent for that channel only**. The agent collects through the owner's signed-in browser with the channel guide and reports what changed in the route.
-4. **Refresh on demand.** A "refresh everything now" command runs the API sources immediately (guarded against floods, for example 10 minutes) and triggers every channel job.
-5. **Cadence:** about 4 times a day for social, matching the posting rhythm, and daily for search data, which lags 2–3 days.
+An agent that browses every post costs about 15–20 minutes per channel per run and often times out. A script costs seconds. An official API costs one or two seconds and needs no browser. Move every channel down this ladder as soon as you can.
+
+1. **Official API where one exists** (for example the YouTube Data API or the Threads API). The owner creates the OAuth client and gives consent once; the team never sees the secret (see engineering-contracts.md).
+2. **Record routes.** For each remaining channel, an agent does one normal collection while writing down every URL, locator, label and gotcha (`routes/<channel>.md` and `.json`).
+3. **Script it.** Engineering turns the route into a deterministic script on the owner's signed-in browser profile, with no LLM.
+   - **One aggregate page per channel** (a stats list, an activity feed), not one page per post. Prove the signed-in identity once per run, not on every page.
+   - Use per-post pages only where no aggregate shows exact counts.
+4. **Launch.** One hourly launcher per channel, offset by a minute (:30, :31, :32 …). If the platform does not let a graph step drive the browser, the launcher is a cron agent on a cheap model with a thin body:
+   - run the script exactly once;
+   - if it committed, report one line and stop;
+   - only when the script reports a typed parse-change failure with a verified, still-reserved slot does the same agent finish the collection by the channel guide, with the SAME reservation.
+5. **Health.** An hourly read-only health check compares each channel's last receipt-verified commit with its schedule: ok, late, down or paused. It shows on the dashboard. A cron's own "Success" only means it delivered a report, never that it saved data.
+6. **Cadence:** hourly for social, with extra early points at about 15, 30, 60 and 180 minutes after a post goes out; daily for search data, which lags 2–3 days.
 
 ### Collector rules (scripts and agents)
 - **Read-only.** Never like, reply, follow, export or download.
-- **One tab per job, closed at the end,** even after a failure.
-- **Read numbers from the post's own page or analytics.** List and overview cards often count a different window.
-- **New posts first:** take every post from the last 14 days from the activity feed, then fill up from the top lists. Top lists miss fresh posts.
+- **One tab per job, closed at the end,** even after a failure. Check the browser's status afterwards; a close that was sent is not a close that happened.
+- **Exact counts only.** Read numbers from the post's own page or analytics. If a header abbreviates ("3.2K", "1,7 тыс."), find the exact value elsewhere (an insights or analytics view) or leave the counter out. Never expand an abbreviation.
+- **Omit, never wrong.** When a count cannot be tied to its own control (an icon-only button, a value that could belong to the next post or a reply), leave it out. A missing value is honest; a value from the wrong post poisons every chart.
+- **New posts first:** take every post from the last 14 days from the activity feed, then fill up from the top lists. Top lists miss fresh posts. **Exception: long-tail channels** (video) take the newest N owned uploads with no age cutoff.
 - **Never write a number you did not read.** Leave out optional counters you could not read.
+- **One reservation per slot.** Begin once, save its stdout to `reservation.json` the moment it returns, and commit with that file. Never retype a key or an attempt id: a model swapping two characters loses the slot. A `--help` call is not a reservation.
+- **Pass timestamps through unchanged.** The builder's `at` goes to the commit byte for byte. In PowerShell, `ConvertFrom-Json` turns it into a local DateTime unless you add `-DateKind String`.
+- **Close stdin** for every CLI the collector runs (`< /dev/null`). A child that inherits an open, never-closing input can hang forever.
+- **Write a progress trace** (stage, elapsed time, post keys) before each navigation, build and commit, so a hard timeout still shows where it stopped.
 - **Absolute paths for scratch files.** Never rely on `$TMP`-style variables.
 - **Report one line per channel.** The validated file is the truth, not the agent's own arithmetic.
 - **History backfill** is a one-off per channel: it reads up to N old posts and registers them in the catalog.
+- **Recipes** that an agent writes for itself between runs hold steps only, never numbers. Quarantine a recipe that contradicts the guide; the guide wins.
 
 ## Publish instant from post ids
 
@@ -53,6 +67,8 @@ Where the platform encodes time in the id, derive it instead of trusting a displ
 - **Never sum unique visitors** across days, ranges, codes or channels.
 - **Channel attribution from a code is catalog-derived.** Label it as such.
 - **Baselines:** each channel's median views per post and its hit line, from the history backfill. Judge new posts against their own channel's baseline.
+- **Never mix sources in one series.** An API count and a browser count for the same video are different measurements (the public API often lags the studio by a view or two). Key every series by source, definition and precision; a new source starts a new series. Otherwise 24 then 23 shows as a fake drop.
+- **Rounded values stay rounded.** For example, an API that rounds subscribers above 1,000 to three significant figures: show them as approximate and never compute an exact-looking delta.
 
 ## Dashboard rules
 
